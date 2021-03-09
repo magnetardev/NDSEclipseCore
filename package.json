@@ -1,0 +1,14 @@
+{
+  "name": "ds-eclipse-core",
+  "description": "The DS core for Eclipse",
+  "version": "0.1.0",
+  "scripts": {
+    "build:dockerimage": "docker image inspect -f '.' ds-eclipse-core || docker build -t ds-eclipse-core .",
+    "build:emscripten": "docker run --rm -v $(pwd):/src ds-eclipse-core",
+    "build": "npm run build:dockerimage && npm run build:emscripten",
+    "serve": "serve --config serve.json"
+  },
+  "devDependencies": {
+    "serve": "^11.3.2"
+  }
+}

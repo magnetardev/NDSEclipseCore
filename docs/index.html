@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EclipseCore Test</title>
+    <style>
+      body {
+        margin: 0px;
+        font-family: Menlo;
+        font-size: 0.9rem;
+        /* font-family: system-ui; */
+        color: #fff;
+      }
+
+      div.screen-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #000;
+        height: calc(100vh - 50px);
+        width: 100vw;
+        position: absolute;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      div.upload-rom {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        background-color: #000;
+        height: calc(100vh - 50px);
+      }
+
+      div.upload-rom button {
+        margin-top: 0.5rem;
+        display: block;
+        border: none;
+        font-size: inherit;
+        font-family: inherit;
+        border: 1px solid #fff;
+        background-color: transparent;
+        color: #fff;
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+      }
+
+      canvas.screen {
+        width: 100%;
+        height: 100%;
+        image-rendering: pixelated;
+        /* image-rendering: optimizespeed;           */
+      }
+
+      nav.menu-options {
+        /* position: absolute; */
+        /* bottom: 0px; */
+        /* padding: 1rem; */
+        background-color: #000;
+        height: 50px;
+        padding: 0 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: solid thin rgba(141, 141, 141, 0.25);
+      }
+
+      nav.menu-options #system-name {
+        font-weight: bold;
+      }
+
+      nav.menu-options #file-name {
+        opacity: 0.75;
+      }
+
+      nav.menu-options .buttons {
+        height: 100%;
+        /* display: flex; */
+        justify-content: flex-end;
+        align-items: center;
+        display: none;
+      }
+
+      nav.menu-options button {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-color: transparent;
+        border: 1px solid #fff;
+        color: #fff;
+        font-family: inherit;
+        font-size: inherit;
+        padding: 0.5rem 1rem;
+        margin-left: 0.5rem;
+        transition: ease-in-out background-color 100ms;
+        border-radius: 0.25rem;
+      }
+
+      nav.menu-options button svg {
+        fill: currentColor;
+        stroke: currentColor;
+      }
+
+      nav.menu-options button:disabled {
+        opacity: 0.6;
+      }
+
+      nav.menu-options button:hover {
+        background-color: rgba(141, 141, 141, 0.2);
+      }
+
+      nav.menu-options button:active {
+        filter: brightness(75%);
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        margin: 0px;
+      }
+    </style>
+  </head>
+  <body>
+    <input class="hidden" type="file" id="rom-upload" />
+    <div class="game">
+      <nav class="menu-options">
+        <div id="nav-title">
+          <span id="system-name">Core</span><br />
+          <span id="file-name">Upload a Game</span>
+        </div>
+        <div class="buttons">
+          <button disabled>Save State</button>
+          <button disabled>Load State</button>
+          <button disabled id="add-cheat">Add Cheat</button>
+        </div>
+      </nav>
+      <div class="screen-container hidden">
+        <canvas class="screen"></canvas>
+      </div>
+      <div
+        class="upload-rom"
+        ondrop="dropHandler(event)"
+        ondragover="dragOverHandler(event)"
+      >
+        <h1>Upload a ROM</h1>
+        <p>Or drag and drop one.</p>
+        <button onclick="document.querySelector('#rom-upload').click();">
+          Upload ROM
+        </button>
+      </div>
+    </div>
+    <script type="module">
+      import Core from "./core.js";
+
+      document.querySelector("#system-name").innerHTML = Core.system.longName;
+      const canvas = document.querySelector("canvas.screen");
+      const uploadEl = document.querySelector("#rom-upload");
+      uploadEl.accept = Core.fileTypes.map((v) => "." + v).join(",");
+      uploadEl.addEventListener("change", async () => {
+        const rom = uploadEl.files[0];
+        processFile(rom);
+      });
+
+      async function processFile(file) {
+        const buf = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.addEventListener("load", () => resolve(reader.result));
+          reader.readAsArrayBuffer(file);
+        });
+        window.core = new Core(
+          { id: "g809ihjmasd" },
+          new Uint8Array(buf),
+          canvas
+        );
+        document.querySelector(".screen-container").classList.remove("hidden");
+        document.querySelector(".upload-rom").classList.add("hidden");
+        document.querySelector("#file-name").innerHTML = file.name;
+        document.querySelector("#add-cheat").addEventListener("click", () => {
+          let cheat = prompt(`Enter a ${Core.cheatTypes.join(", ")} cheat.`);
+          if (cheat && (cheat.length == 6 || cheat.length == 8)) {
+          }
+        });
+        for (let el of document.querySelectorAll("button:disabled"))
+          el.disabled = false;
+        await core.init();
+        try {
+          core.start(buf);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      window.processFile = processFile;
+    </script>
+    <script>
+      function dragOverHandler(ev) {
+        ev.preventDefault();
+      }
+
+      function dropHandler(ev) {
+        ev.preventDefault();
+        if (ev.dataTransfer.items) {
+          const item = [...ev.dataTransfer.items].find(
+            (item) => item.kind === "file"
+          );
+          if (item) {
+            processFile(item.getAsFile());
+          }
+        } else {
+          processFile(ev.dataTransfer.files[0]);
+        }
+      }
+
+      /**
+       * Inputs
+       */
+      const KEY_BINDINGS = new Map([
+        [13, "start"],
+        [16, "select"],
+        [220, "special"],
+        [88, "a"],
+        [90, "b"],
+        [67, "x"],
+        [86, "y"],
+        [38, "up"],
+        [40, "down"],
+        [37, "left"],
+        [39, "right"],
+        [49, "l_trigger"],
+        [81, "l_shoulder"],
+        [51, "r_trigger"],
+        [69, "r_shoulder"],
+      ]);
+
+      let inputState = {};
+      for (const [_, input] of KEY_BINDINGS.entries()) {
+        inputState[input] = false;
+      }
+
+      window.addEventListener("keydown", (evt) => {
+        if (KEY_BINDINGS.has(evt.keyCode)) {
+          const input = KEY_BINDINGS.get(evt.keyCode);
+          inputState[input] = true;
+          if (window.core) window.core.setActiveInputs(inputState);
+        }
+      });
+
+      window.addEventListener("keyup", (evt) => {
+        if (KEY_BINDINGS.has(evt.keyCode)) {
+          const input = KEY_BINDINGS.get(evt.keyCode);
+          inputState[input] = false;
+          if (window.core) window.core.setActiveInputs(inputState);
+        }
+      });
+    </script>
+  </body>
+</html>
