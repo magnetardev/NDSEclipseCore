@@ -2,3 +2,5 @@ node_modules
 .vscode
 desmume
 .DS_Store
+dist/
+docs/emu/

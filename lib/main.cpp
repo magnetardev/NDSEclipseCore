@@ -85,7 +85,7 @@ void core_init() {}
 int core_start(const char *gamePath) {
   path.ReadPathSettings();
   // General
-  CommonSettings.num_cores = (int)sysconf( _SC_NPROCESSORS_ONLN );
+  CommonSettings.num_cores = (int)sysconf(_SC_NPROCESSORS_ONLN);
   CommonSettings.advanced_timing = false;
   CommonSettings.cheatsDisable = true;
   CommonSettings.autodetectBackupMethod = 1;
@@ -138,10 +138,10 @@ int core_start(const char *gamePath) {
     NDS_Init();
     cur3DCore = 0;
 
-    GPU->Change3DRendererByID(0);
+    GPU->Change3DRendererByID(1);
     GPU->SetColorFormat(NDSColorFormat_BGR888_Rev);
 
-    // SPU_ChangeSoundCore(SNDCORE_DELTA, DESMUME_SAMPLE_RATE * 8/60);
+    SPU_ChangeSoundCore(SNDCORE_ECLIPSE, DESMUME_SAMPLE_RATE * 8/60);
 
     _core_is_ready = true;
   }
@@ -189,9 +189,8 @@ void core_run_frame(bool processVideo) {
   
   NDS_exec<false>();
   
-  if (processVideo) {
+  if (processVideo && _core_video_handler != NULL)
       (*_core_video_handler)((const unsigned char *)GPU->GetDisplayInfo().masterNativeBuffer, 256 * 384 * 4);
-  }
   
   SPU_Emulate_user();
 }
@@ -270,7 +269,8 @@ void core_attach_save_handler(core_fs_handler_t saveHandler) {
 }
 
 void eclipse_update_audio(s16 *buffer, u32 num_samples) {
-    // [DSEmulatorBridge.sharedBridge.audioRenderer.audioBuffer writeBuffer:(uint8_t *)buffer size:num_samples * 4];
+  if (_core_video_handler != NULL) 
+    (*_core_video_handler)((const unsigned char *)buffer, num_samples * 4);
 }
 
 u32 eclipse_get_audio_space() {
@@ -312,15 +312,13 @@ extern "C" {
 
 
 
-enum stat_mode
-{
+enum stat_mode {
    IS_DIRECTORY = 0,
    IS_CHARACTER_SPECIAL,
    IS_VALID
 };
 
-static bool path_stat(const char *path, enum stat_mode mode, int32_t *size)
-{
+static bool path_stat(const char *path, enum stat_mode mode, int32_t *size) {
   struct stat buf;
    if (stat(path, &buf) < 0)
       return false;
@@ -354,18 +352,15 @@ bool path_is_directory(const char *path)
    return path_stat(path, IS_DIRECTORY, NULL);
 }
 
-bool path_is_character_special(const char *path)
-{
+bool path_is_character_special(const char *path) {
    return path_stat(path, IS_CHARACTER_SPECIAL, NULL);
 }
 
-bool path_is_valid(const char *path)
-{
+bool path_is_valid(const char *path) {
    return path_stat(path, IS_VALID, NULL);
 }
 
-int32_t path_get_size(const char *path)
-{
+int32_t path_get_size(const char *path) {
    int32_t filesize = 0;
    if (path_stat(path, IS_VALID, &filesize))
       return filesize;
@@ -381,8 +376,7 @@ int32_t path_get_size(const char *path)
  *
  * Returns: true (1) if directory could be created, otherwise false (0).
  **/
-bool mkdir_norecurse(const char *dir)
-{
+bool mkdir_norecurse(const char *dir) {
    int ret;
    ret = mkdir(dir, 0750);
    if (ret < 0 && errno == EEXIST && path_is_directory(dir))
